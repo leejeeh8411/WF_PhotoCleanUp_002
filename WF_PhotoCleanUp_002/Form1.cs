@@ -110,7 +110,7 @@ namespace WF_PhotoCleanUp_002
             int nCntAll = m_nCntAll;
             int nCnt = m_nCnt;
 
-            if(m_nCnt != 0)
+            if(m_nCnt != 0 && m_nCntAll != 0)
             {
                 int nPercent = Convert.ToInt32((((float)m_nCnt / (float)m_nCntAll) * 100.0));
                 SetProgressBar(nPercent);
@@ -369,7 +369,14 @@ namespace WF_PhotoCleanUp_002
                 int nCnt = 0;
 
                 ProgressBarMarStart();
-               
+
+
+                //아래 안들어갈 수도 있음. 바로 파일이 있을때.
+
+                foreach (System.IO.FileInfo f in di.GetFiles())
+                {
+                    nCnt++;
+                }
 
                 foreach (var item in di.GetDirectories())
                 {
