@@ -13,6 +13,9 @@ using System.IO;
 using Microsoft.WindowsAPICodePack.Dialogs;
 using MetadataExtractor;
 using MetadataExtractor.Formats.Exif;
+using MetadataExtractor.IO;
+using MetadataExtractor.Util;
+using MetadataExtractor.Formats.QuickTime;
 
 
 
@@ -27,13 +30,32 @@ namespace WF_PhotoCleanUp_002
         public string filePath;
         public string fileName;
         public string folderName;
+        public bool bDone;
+        public string fileExt;
+        public bool bImage;
+        public bool bVideo;
+    }
+
+    public struct MyExifData
+    {
+        public DateTime dtDate;
+        public bool bSuccessExifData;
+        public string strFileExt;
+        public bool bVideo;
+        public bool bImage;
     }
 
     public partial class Form1 : Form
     {
+        Timer myTimer = new Timer();
+        Timer myTimerProgress = new Timer();
+        int m_nCntAll = 0;
+        int m_nCnt = 0;
+
         string strSrcPath = string.Empty;
         string strDestPath = string.Empty;
         string strDefaultFolder = "C:\\";
+        string[] strListUseExt = { "MP4", "MOV" };
 
 
         List<MyPhoto> listPhoto = new List<MyPhoto>();
@@ -44,7 +66,59 @@ namespace WF_PhotoCleanUp_002
         public Form1()
         {
             InitializeComponent();
-            InitProgressBar();
+            
+            myTimer.Interval = 500;
+            myTimer.Tick += new EventHandler(timer_tick);
+            myTimer.Start();
+
+            myTimerProgress.Interval = 200;
+            myTimerProgress.Tick += new EventHandler(timer_tick_progress);
+            //myTimerProgress.Start();
+
+            ProgressBarMarStop();
+
+        }
+
+        public void timer_tick(object sender, System.EventArgs e)
+        {
+            int nAllCnt = m_nCntAll;// listPhoto.Count;
+            int nDone = 0;
+            int nCnt = 0;
+            
+            foreach (MyPhoto myPhoto in listPhoto)
+            {
+                if (myPhoto.bDone)
+                {
+                    nDone++;
+                }
+                else
+                {
+                    nCnt++;
+                }
+            }
+
+            m_nCnt = nCnt;
+
+            string strLog1 = string.Format("{0}", nCnt);
+            string strLog2 = string.Format("{0}", nAllCnt);
+            tb_cnt1.Text = strLog1;
+            tb_cnt2.Text = strLog2;
+        }
+
+        public void timer_tick_progress(object sender, System.EventArgs e)
+        {
+            int nCntAll = m_nCntAll;
+            int nCnt = m_nCnt;
+
+            if(m_nCnt != 0)
+            {
+                int nPercent = Convert.ToInt32((((float)m_nCnt / (float)m_nCntAll) * 100.0));
+                SetProgressBar(nPercent);
+            }
+        }
+
+        public void func1()
+        {
             IEnumerable<MetadataExtractor.Directory> directories;
             directories = ImageMetadataReader.ReadMetadata("D:\\1.MOV");
 
@@ -67,7 +141,7 @@ namespace WF_PhotoCleanUp_002
                 catch (MetadataExtractor.ImageProcessingException e)
                 {
                     WriteLog("Exception-"+strFullName);
-                }
+}
                 
                 foreach (var direc in directories)
                 {
@@ -95,13 +169,15 @@ namespace WF_PhotoCleanUp_002
         }
         private void btn_reserch_Click(object sender, EventArgs e)
         {
-           
-            string strFileCnt = GetFileCnt();
-            WriteLog(strFileCnt);
+            ResetVariable();
+            ReadFolder(textBox_src_path.Text);
+ 
         }
 
         private void btn_clean_Click(object sender, EventArgs e)
         {
+            return;
+
             string strFileCnt = string.Empty;
 
             if (string.IsNullOrEmpty(textBox_src_path.Text) == false && string.IsNullOrEmpty(textBox_dest_path.Text) == false)
@@ -192,19 +268,28 @@ namespace WF_PhotoCleanUp_002
             return DateTime.Now;
         }
 
-        private void InitProgressBar()
+        private void SetProgressBarBlockStyle()
         {
             // 디폴트값 사용 (Maximum=100, Minimum=0, Step=10)
-            progressBar_clean.Style = ProgressBarStyle.Blocks;
-
             // 최대,최소,간격을 임의로 조정
-            progressBar_clean.Style = ProgressBarStyle.Continuous;
+            progressBar_clean.Style = ProgressBarStyle.Blocks;
             progressBar_clean.Minimum = 0;
             progressBar_clean.Maximum = 100;
             progressBar_clean.Step = 1;
             progressBar_clean.Value = 0;
-            progressBar_clean.Enabled = true;
         }
+
+        private void SetProgressBar(int nPercent)
+        {
+            // 디폴트값 사용 (Maximum=100, Minimum=0, Step=10)
+            // 최대,최소,간격을 임의로 조정
+            if(nPercent > progressBar_clean.Maximum)
+            {
+                nPercent = progressBar_clean.Maximum;
+            }
+            progressBar_clean.Value = nPercent;
+        }
+
 
         private string FileRename(string filePath, string oldFile, string newFile)
         {
@@ -251,6 +336,60 @@ namespace WF_PhotoCleanUp_002
             return strText;
         }
 
+        private void ResetVariable()
+        {
+            string strText = string.Empty;
+            JpgFile.SetFileCnt(0);
+            NonJpgFile.SetFileCnt(0);
+            listPhoto.Clear();
+        }
+
+        private void ProgressBarMarStart()
+        {
+            progressBar_clean.Enabled = true;
+            progressBar_clean.MarqueeAnimationSpeed = 50;
+            progressBar_clean.Style = ProgressBarStyle.Marquee;
+        }
+
+        private void ProgressBarMarStop()
+        {
+            progressBar_clean.Enabled = false;
+            progressBar_clean.MarqueeAnimationSpeed = 0;
+            progressBar_clean.Style = ProgressBarStyle.Blocks;
+            progressBar_clean.Value = progressBar_clean.Minimum;
+        }
+
+
+        private void ReadFolder(string strFolderPath)
+        {
+            //파일 탐색
+            if (string.IsNullOrEmpty(strFolderPath) == false)
+            {
+                DirectoryInfo di = new DirectoryInfo(strFolderPath);
+                int nCnt = 0;
+
+                ProgressBarMarStart();
+               
+
+                foreach (var item in di.GetDirectories())
+                {
+                    nCnt += item.GetFiles("*.*", System.IO.SearchOption.AllDirectories).Length;
+                    Delay(1);
+                }
+
+                ProgressBarMarStop();
+
+                m_nCntAll = nCnt;
+
+                myTimerProgress.Start();
+                listPhoto.Clear();
+
+                find_photo2(textBox_src_path.Text);
+
+                //myTimerProgress.Stop();
+            }
+        }
+
         private void open_file_dialog(string str_default_path)
         {
             openFileDialog1.InitialDirectory = str_default_path;
@@ -294,9 +433,9 @@ namespace WF_PhotoCleanUp_002
 
                         MyPhoto myPhoto = new MyPhoto();
 
+                        //찍은날짜 없으면
                         if (string.IsNullOrEmpty(strExposureDate) == true)
-                        {
-                           
+                        { 
                             myPhoto.bExifDate = false;
                             myPhoto.filePath = File.FullName;
                             myPhoto.fileName = File.Name;
@@ -347,6 +486,61 @@ namespace WF_PhotoCleanUp_002
             
         }
 
+ 
+        void find_photo2(string path)
+        {
+            System.IO.DirectoryInfo diInfo = new System.IO.DirectoryInfo(path);
+
+            // 현재 디렉토리의 총 파일 갯수 구하기
+            foreach (System.IO.FileInfo File in diInfo.GetFiles())
+            {
+                MyExifData myExifData = get_exif_data(File.FullName);
+                MyPhoto myPhoto = new MyPhoto();
+
+                if (myExifData.bSuccessExifData)
+                {
+                    myPhoto.bExifDate = false;
+                    myPhoto.filePath = File.FullName;
+                    myPhoto.fileName = File.Name;
+                    listPhoto.Add(myPhoto);
+                }
+                else
+                {
+                    DateTime dtCreatedDate = myExifData.dtDate;
+                    string myConvertedDate = dtCreatedDate.ToString("yyyy-MM-dd");
+                    int nCovertedDate = Convert.ToInt32(dtCreatedDate.ToString("yyyyMMdd"));
+                    long nCovertedDateFull = Convert.ToInt64(dtCreatedDate.ToString("yyyyMMddHHmmss"));
+
+                    myPhoto.nDate = nCovertedDate;
+                    myPhoto.nDateFull = nCovertedDateFull;
+                    myPhoto.fileName = File.Name;
+                    myPhoto.bExifDate = true;
+                    myPhoto.filePath = File.FullName;
+                    myPhoto.folderName = myConvertedDate;
+                    myPhoto.bDone = false;
+                    myPhoto.fileExt = myExifData.strFileExt;
+                    myPhoto.bImage = myExifData.bImage;
+                    myPhoto.bVideo = myExifData.bVideo;
+
+                    listPhoto.Add(myPhoto);
+                }
+            }
+
+            //JpgFile.AddFileCnt(nJpgFileCnt);
+            //NonJpgFile.AddFileCnt(nNonJpgFileCnt);
+
+            //string strLog = string.Format("파일로딩중 : [{0}] / [{1}] ", JpgFile.GetFileCnt(), NonJpgFile.GetFileCnt());
+            //WriteLog(strLog);
+            Delay(5);
+
+            System.IO.DirectoryInfo[] dirs = diInfo.GetDirectories();                       // 현재 path경로의 디렉터리들을 검색.       
+            if (dirs.Length > 0)
+            {
+                foreach (System.IO.DirectoryInfo item in diInfo.GetDirectories())
+                    find_photo2(item.FullName);
+            }
+        }
+
         void CreateFolder(string strFolderPath)
         {
             DirectoryInfo di = new DirectoryInfo(strFolderPath);
@@ -356,6 +550,131 @@ namespace WF_PhotoCleanUp_002
                 di.Create();
             }
         }
+
+        DateTime ConvertDateExif(string strDate)
+        {
+            //Exif Date string -> DateTime 
+            DateTime dtDate;
+            CultureInfo provider = CultureInfo.InvariantCulture;
+            string strExposureDate2 = strDate.Replace("-", ":");
+            string format = "yyyy:MM:dd HH:mm:ss";
+            dtDate = DateTime.ParseExact(strExposureDate2, format, provider);
+            //string myConvertedDate = dtDate.ToString("yyyy-MM-dd");
+            //int nCovertedDate = Convert.ToInt32(dtDate.ToString("yyyyMMdd"));
+            //long nCovertedDateFull = Convert.ToInt64(dtDate.ToString("yyyyMMddHHmmss"));
+
+            return dtDate;
+        }
+        DateTime ConvertDateVideo(string strDate)
+        {
+            //목 8 08 17:00:03 2019
+            //Exif Date string -> DateTime 
+            DateTime dtDate;
+            CultureInfo provider = CultureInfo.InvariantCulture;
+            string strTemp1 = strDate.Substring(4, strDate.Length - 4);
+            strTemp1 = strTemp1.Trim();
+            int strTempMonth = Convert.ToInt32(strDate.Substring(2, 2));
+            string strTempAll = string.Format("{0:d2} {1}", strTempMonth, strTemp1);
+            strTempAll = strTempAll.Replace("-", ":");
+            string format = "MM dd HH:mm:ss yyyy";//"yyyy:MM:dd HH:mm:ss";
+            dtDate = DateTime.ParseExact(strTempAll, format, provider);
+
+            return dtDate;
+        }
+
+        MyExifData get_exif_data(string str_file)
+        {
+            MyExifData myExifData;
+            myExifData.bSuccessExifData = false;
+            myExifData.strFileExt = null;
+            myExifData.bImage = false;
+            myExifData.bVideo = false;
+            myExifData.dtDate = new DateTime();
+
+            try
+            {
+                FileStream myStream = new FileStream(str_file, FileMode.Open);
+                FileType fileType = FileTypeDetector.DetectFileType(myStream);
+                myStream.Close();
+
+                IEnumerable<MetadataExtractor.Directory> directories;
+                directories = ImageMetadataReader.ReadMetadata(str_file);
+                DateTime dtTime;
+
+                if (fileType == FileType.Jpeg || fileType == FileType.Png || fileType == FileType.Bmp)
+                {
+                    var subIfdDirectory = directories.OfType<ExifSubIfdDirectory>().FirstOrDefault();
+                    var dateTime = subIfdDirectory?.GetDescription(ExifDirectoryBase.TagDateTimeOriginal);
+
+                    if (dateTime != null)
+                    {
+                        dtTime = ConvertDateExif(dateTime);
+                        myExifData.bSuccessExifData = true;
+                        myExifData.strFileExt = Path.GetExtension(str_file);
+                        myExifData.bImage = true;
+                        myExifData.bVideo = false;
+                        myExifData.dtDate = dtTime;
+                    }
+
+                }
+                else if (fileType == FileType.QuickTime)//동영상일 경우 
+                {
+                    bool bUseVideoFile = UseVideoFile(str_file);
+                    if (bUseVideoFile)
+                    {
+                        var subIfdDirectory = directories.OfType<QuickTimeMovieHeaderDirectory>().FirstOrDefault();
+                        var dateTime = subIfdDirectory?.GetDescription(QuickTimeMovieHeaderDirectory.TagCreated);
+                        if (dateTime != null)
+                        {
+                            dtTime = ConvertDateVideo(dateTime);
+                            myExifData.bSuccessExifData = true;
+                            myExifData.strFileExt = Path.GetExtension(str_file);
+                            myExifData.bImage = false;
+                            myExifData.bVideo = true;
+                            myExifData.dtDate = dtTime;
+                        }
+                    }
+                }
+            }
+            catch (MetadataExtractor.ImageProcessingException e)
+            {
+                WriteLog("Exception-" + str_file);
+                return myExifData;
+            }
+            catch (System.UnauthorizedAccessException e)
+            {
+                WriteLog("Exception-" + str_file);
+                return myExifData;
+            }
+            catch (System.IO.IOException e)
+            {
+                WriteLog("Exception-" + str_file);
+                return myExifData;
+            }
+
+            return myExifData;
+        }
+
+  
+        bool UseVideoFile(string strFile)
+        {
+            bool bRet = false;
+            
+            string strParseExt = Path.GetExtension(strFile);
+            strParseExt = strParseExt.Replace(".", "");
+
+            foreach (string strExt in strListUseExt)
+            {
+                if(strExt == strParseExt)
+                {
+                    bRet = true;
+                    break;
+                }
+            }
+            return bRet;
+        }
+
+
         string get_exif_info(string str_file)
         {
             string str_exposure_date = string.Empty;
@@ -402,10 +721,6 @@ namespace WF_PhotoCleanUp_002
             textBox_log_1.ScrollToCaret(); // 캐럿 이동.
             textBox_log_1.Refresh();
         }
-
-       
-
-      
     }
 
     public class PhotoFile

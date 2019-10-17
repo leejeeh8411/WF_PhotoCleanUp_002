@@ -39,6 +39,8 @@
             this.btn_reserch = new System.Windows.Forms.Button();
             this.btn_clean = new System.Windows.Forms.Button();
             this.progressBar_clean = new System.Windows.Forms.ProgressBar();
+            this.tb_cnt1 = new System.Windows.Forms.TextBox();
+            this.tb_cnt2 = new System.Windows.Forms.TextBox();
             this.SuspendLayout();
             // 
             // textBox_src_path
@@ -117,6 +119,7 @@
             // 
             // btn_clean
             // 
+            this.btn_clean.Enabled = false;
             this.btn_clean.Location = new System.Drawing.Point(111, 109);
             this.btn_clean.Name = "btn_clean";
             this.btn_clean.Size = new System.Drawing.Size(75, 23);
@@ -127,16 +130,34 @@
             // 
             // progressBar_clean
             // 
-            this.progressBar_clean.Location = new System.Drawing.Point(14, 149);
+            this.progressBar_clean.Location = new System.Drawing.Point(12, 187);
             this.progressBar_clean.Name = "progressBar_clean";
             this.progressBar_clean.Size = new System.Drawing.Size(438, 23);
             this.progressBar_clean.TabIndex = 9;
+            // 
+            // tb_cnt1
+            // 
+            this.tb_cnt1.Location = new System.Drawing.Point(311, 111);
+            this.tb_cnt1.Name = "tb_cnt1";
+            this.tb_cnt1.ReadOnly = true;
+            this.tb_cnt1.Size = new System.Drawing.Size(52, 21);
+            this.tb_cnt1.TabIndex = 10;
+            // 
+            // tb_cnt2
+            // 
+            this.tb_cnt2.Location = new System.Drawing.Point(373, 111);
+            this.tb_cnt2.Name = "tb_cnt2";
+            this.tb_cnt2.ReadOnly = true;
+            this.tb_cnt2.Size = new System.Drawing.Size(52, 21);
+            this.tb_cnt2.TabIndex = 11;
             // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(627, 452);
+            this.Controls.Add(this.tb_cnt2);
+            this.Controls.Add(this.tb_cnt1);
             this.Controls.Add(this.progressBar_clean);
             this.Controls.Add(this.btn_clean);
             this.Controls.Add(this.btn_reserch);
@@ -167,6 +188,8 @@
         private System.Windows.Forms.Button btn_reserch;
         private System.Windows.Forms.Button btn_clean;
         private System.Windows.Forms.ProgressBar progressBar_clean;
+        private System.Windows.Forms.TextBox tb_cnt1;
+        private System.Windows.Forms.TextBox tb_cnt2;
     }
 }
 
