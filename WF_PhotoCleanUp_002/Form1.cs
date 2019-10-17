@@ -11,6 +11,9 @@ using System.Drawing.Imaging;
 using System.Globalization;
 using System.IO;
 using Microsoft.WindowsAPICodePack.Dialogs;
+using MetadataExtractor;
+using MetadataExtractor.Formats.Exif;
+
 
 
 namespace WF_PhotoCleanUp_002
@@ -32,7 +35,7 @@ namespace WF_PhotoCleanUp_002
         string strDestPath = string.Empty;
         string strDefaultFolder = "C:\\";
 
-        //Dictionary<string, int> dic = new Dictionary<string, int>();
+
         List<MyPhoto> listPhoto = new List<MyPhoto>();
 
         PhotoFile JpgFile = new PhotoFile();
@@ -42,6 +45,39 @@ namespace WF_PhotoCleanUp_002
         {
             InitializeComponent();
             InitProgressBar();
+            IEnumerable<MetadataExtractor.Directory> directories;
+            directories = ImageMetadataReader.ReadMetadata("D:\\1.MOV");
+
+            //var subIfdDirectory = directories.OfType<ExifSubIfdDirectory>().FirstOrDefault();
+            //var dateTime = subIfdDirectory?.GetDescription(ExifDirectoryBase.TagDateTime);
+
+            //Console.WriteLine($"{ dateTime}");
+
+            System.IO.DirectoryInfo diInfo = new System.IO.DirectoryInfo("D:\\");
+
+            foreach (System.IO.FileInfo File in diInfo.GetFiles())
+            {
+                string strFullName = File.FullName;
+
+                try
+                {
+                    directories = ImageMetadataReader.ReadMetadata(strFullName);
+                    Console.WriteLine("fileName = " + strFullName);
+                }
+                catch (MetadataExtractor.ImageProcessingException e)
+                {
+                    WriteLog("Exception-"+strFullName);
+                }
+                
+                foreach (var direc in directories)
+                {
+                    foreach (var tag1 in direc.Tags)
+                    {
+                        Console.WriteLine($"{ direc.Name} - { tag1.Name} = { tag1.Description}");
+                    }
+
+                }
+            }
         }
 
         private void btn_sel_src_folder_Click(object sender, EventArgs e)
