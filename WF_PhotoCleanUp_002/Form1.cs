@@ -48,10 +48,7 @@ namespace WF_PhotoCleanUp_002
 
     public partial class Form1 : Form
     {
-        ThreadStart threadReadFolderGate;
-        Thread threadReadFolder;
-        ThreadStart threadDrawInfoGate;
-        Thread threadDrawInfo;
+
         Queue<string> m_queueLogMsg = new Queue<string>();
         string m_strTbSrcPath = string.Empty;
 
@@ -73,8 +70,6 @@ namespace WF_PhotoCleanUp_002
         PhotoFile JpgFile = new PhotoFile();
         PhotoFile NonJpgFile = new PhotoFile();
 
-        MyWorker myWorker = new MyWorker();
-
         //Thread #1
         public void ThreadReadFolder()
         {
@@ -90,15 +85,6 @@ namespace WF_PhotoCleanUp_002
         {
             InitializeComponent();
 
-            //Thread init
-           
-
-            //threadDrawInfoGate = this.ThreadDrawInfo;
-            //threadDrawInfo = new Thread(threadDrawInfoGate);
-
-            //threadDrawInfo.Start();
-
-
             myTimer.Interval = 100;
             myTimer.Tick += new EventHandler(timer_tick);
             myTimer.Start();
@@ -106,8 +92,6 @@ namespace WF_PhotoCleanUp_002
             //myTimerProgress.Interval = 200;
             //myTimerProgress.Tick += new EventHandler(timer_tick_progress);
             //myTimerProgress.Start();
-
-            //ProgressBarMarStop();
 
         }
         public void DrawInfo()
@@ -131,17 +115,20 @@ namespace WF_PhotoCleanUp_002
 
         public void timer_tick(object sender, System.EventArgs e)
         {
-            string strLog1 = string.Format("{0}", myWorker.m_nCnt);
-            string strLog2 = string.Format("{0}", myWorker.m_nCntAll);
+            string strLog1 = string.Format("{0}", listPhoto.Count);
+            string strLog2 = string.Format("{0}", m_nCntAll);
             tb_cnt1.Text = strLog1;
             tb_cnt2.Text = strLog2;
 
-            if (myWorker.m_queueLogMsg.Count() > 0)
+            if (m_queueLogMsg.Count() > 0)
             {
-                string strMsg = myWorker.m_queueLogMsg.Dequeue();
-                WriteLog(strMsg);
+                string strMsg = string.Empty;
+                for (int i=0; i< m_queueLogMsg.Count(); i++)
+                {
+                    strMsg = m_queueLogMsg.Dequeue();
+                    WriteLog(strMsg);
+                }
             }
-            
         }
 
         public void timer_tick_progress(object sender, System.EventArgs e)
@@ -153,43 +140,6 @@ namespace WF_PhotoCleanUp_002
             {
                 int nPercent = Convert.ToInt32((((float)m_nCnt / (float)m_nCntAll) * 100.0));
                 SetProgressBar(nPercent);
-            }
-        }
-
-        public void func1()
-        {
-            IEnumerable<MetadataExtractor.Directory> directories;
-            directories = ImageMetadataReader.ReadMetadata("D:\\1.MOV");
-
-            //var subIfdDirectory = directories.OfType<ExifSubIfdDirectory>().FirstOrDefault();
-            //var dateTime = subIfdDirectory?.GetDescription(ExifDirectoryBase.TagDateTime);
-
-            //Console.WriteLine($"{ dateTime}");
-
-            System.IO.DirectoryInfo diInfo = new System.IO.DirectoryInfo("D:\\");
-
-            foreach (System.IO.FileInfo File in diInfo.GetFiles())
-            {
-                string strFullName = File.FullName;
-
-                try
-                {
-                    directories = ImageMetadataReader.ReadMetadata(strFullName);
-                    Console.WriteLine("fileName = " + strFullName);
-                }
-                catch (MetadataExtractor.ImageProcessingException e)
-                {
-                    WriteLog("Exception-"+strFullName);
-}
-                
-                foreach (var direc in directories)
-                {
-                    foreach (var tag1 in direc.Tags)
-                    {
-                        Console.WriteLine($"{ direc.Name} - { tag1.Name} = { tag1.Description}");
-                    }
-
-                }
             }
         }
 
@@ -206,21 +156,22 @@ namespace WF_PhotoCleanUp_002
             strDestPath = open_folder_dialog(strDefaultFolder);
             textBox_dest_path.Text = strDestPath;
         }
+
         private void btn_reserch_Click(object sender, EventArgs e)
         {
             ResetVariable();
-            myWorker.m_strSrcPath = textBox_src_path.Text;
-            myWorker.RunWorkThread();
 
-
-            //threadReadFolder = new Thread(new ThreadStart(ThreadReadFolder));
-            //threadReadFolder.IsBackground = true;
-            //threadReadFolder.Priority = ThreadPriority.Normal;
-            //m_strTbSrcPath = textBox_src_path.Text;
-            //threadReadFolder.Start();
-            //m_queueLogMsg.Enqueue("스레드 시작");
-            //threadReadFolder.Join();
-            //m_queueLogMsg.Enqueue("스레드 종료");
+            Thread thread = new Thread(new ThreadStart(delegate () // thread 생성
+            {
+                m_strTbSrcPath = textBox_src_path.Text;
+                ReadFolder(m_strTbSrcPath);
+                this.Invoke(new Action(delegate ()
+                {
+                   
+                }));
+            }));
+            m_queueLogMsg.Enqueue("스레드 시작");
+            thread.Start();
         }
        
         private void btn_clean_Click(object sender, EventArgs e)
