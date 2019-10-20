@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -47,8 +48,16 @@ namespace WF_PhotoCleanUp_002
 
     public partial class Form1 : Form
     {
-        Timer myTimer = new Timer();
-        Timer myTimerProgress = new Timer();
+        
+        ThreadStart threadReadFolderGate;
+        Thread threadReadFolder;
+        ThreadStart threadDrawInfoGate;
+        Thread threadDrawInfo;
+        Queue<string> m_queueLogMsg = new Queue<string>();
+
+
+        System.Windows.Forms.Timer myTimer = new System.Windows.Forms.Timer();
+        System.Windows.Forms.Timer myTimerProgress = new System.Windows.Forms.Timer();
         int m_nCntAll = 0;
         int m_nCnt = 0;
 
@@ -62,47 +71,74 @@ namespace WF_PhotoCleanUp_002
 
         PhotoFile JpgFile = new PhotoFile();
         PhotoFile NonJpgFile = new PhotoFile();
-     
+
+        //Thread #1
+        public void ThreadReadFolder()
+        {
+            ReadFolder(textBox_src_path.Text);
+        }
+        public void ThreadDrawInfo()
+        {
+            DrawInfo();
+        }
+
+
         public Form1()
         {
             InitializeComponent();
-            
-            myTimer.Interval = 500;
+
+            //Thread init
+            threadReadFolderGate = this.ThreadReadFolder;
+            threadReadFolder = new Thread(threadReadFolderGate);
+
+            //threadDrawInfoGate = this.ThreadDrawInfo;
+            //threadDrawInfo = new Thread(threadDrawInfoGate);
+
+            //threadDrawInfo.Start();
+
+
+            myTimer.Interval = 100;
             myTimer.Tick += new EventHandler(timer_tick);
             myTimer.Start();
 
-            myTimerProgress.Interval = 200;
-            myTimerProgress.Tick += new EventHandler(timer_tick_progress);
+            //myTimerProgress.Interval = 200;
+            //myTimerProgress.Tick += new EventHandler(timer_tick_progress);
             //myTimerProgress.Start();
 
-            ProgressBarMarStop();
+            //ProgressBarMarStop();
 
         }
+        public void DrawInfo()
+        {
+            while (true)
+            {
+                string strLog1 = string.Format("{0}", m_nCnt);
+                string strLog2 = string.Format("{0}", m_nCntAll);
+                tb_cnt1.Text = strLog1;
+                tb_cnt2.Text = strLog2;
+                Delay(1);
+            } 
+        }
+
+        public void SetCntInfo(int nCnt, int nCntAll)
+        {
+            m_nCnt = nCnt;
+            m_nCntAll = nCntAll;
+        }
+
 
         public void timer_tick(object sender, System.EventArgs e)
         {
-            int nAllCnt = m_nCntAll;// listPhoto.Count;
-            int nDone = 0;
-            int nCnt = 0;
-            
-            foreach (MyPhoto myPhoto in listPhoto)
-            {
-                if (myPhoto.bDone)
-                {
-                    nDone++;
-                }
-                else
-                {
-                    nCnt++;
-                }
-            }
-
-            m_nCnt = nCnt;
-
-            string strLog1 = string.Format("{0}", nCnt);
-            string strLog2 = string.Format("{0}", nAllCnt);
+            string strLog1 = string.Format("{0}", m_nCnt);
+            string strLog2 = string.Format("{0}", m_nCntAll);
             tb_cnt1.Text = strLog1;
             tb_cnt2.Text = strLog2;
+
+            if(m_queueLogMsg.Count() > 0)
+            {
+                m_queueLogMsg.Dequeue();
+            }
+            
         }
 
         public void timer_tick_progress(object sender, System.EventArgs e)
@@ -170,10 +206,10 @@ namespace WF_PhotoCleanUp_002
         private void btn_reserch_Click(object sender, EventArgs e)
         {
             ResetVariable();
-            ReadFolder(textBox_src_path.Text);
- 
+            
+            threadReadFolder.Start();
         }
-
+       
         private void btn_clean_Click(object sender, EventArgs e)
         {
             return;
@@ -368,9 +404,6 @@ namespace WF_PhotoCleanUp_002
                 DirectoryInfo di = new DirectoryInfo(strFolderPath);
                 int nCnt = 0;
 
-                ProgressBarMarStart();
-
-
                 //아래 안들어갈 수도 있음. 바로 파일이 있을때.
 
                 foreach (System.IO.FileInfo f in di.GetFiles())
@@ -384,16 +417,12 @@ namespace WF_PhotoCleanUp_002
                     Delay(1);
                 }
 
-                ProgressBarMarStop();
 
                 m_nCntAll = nCnt;
 
-                myTimerProgress.Start();
                 listPhoto.Clear();
 
                 find_photo2(textBox_src_path.Text);
-
-                //myTimerProgress.Stop();
             }
         }
 
@@ -533,12 +562,7 @@ namespace WF_PhotoCleanUp_002
                 }
             }
 
-            //JpgFile.AddFileCnt(nJpgFileCnt);
-            //NonJpgFile.AddFileCnt(nNonJpgFileCnt);
-
-            //string strLog = string.Format("파일로딩중 : [{0}] / [{1}] ", JpgFile.GetFileCnt(), NonJpgFile.GetFileCnt());
-            //WriteLog(strLog);
-            Delay(5);
+            //Delay(5);
 
             System.IO.DirectoryInfo[] dirs = diInfo.GetDirectories();                       // 현재 path경로의 디렉터리들을 검색.       
             if (dirs.Length > 0)
@@ -645,17 +669,23 @@ namespace WF_PhotoCleanUp_002
             }
             catch (MetadataExtractor.ImageProcessingException e)
             {
-                WriteLog("Exception-" + str_file);
+                //WriteLog("Exception-" + str_file);
+                string strMsg = string.Format("Exception-{0}", str_file);
+                m_queueLogMsg.Enqueue(strMsg);
                 return myExifData;
             }
             catch (System.UnauthorizedAccessException e)
             {
-                WriteLog("Exception-" + str_file);
+                //WriteLog("Exception-" + str_file);
+                string strMsg = string.Format("Exception-{0}", str_file);
+                m_queueLogMsg.Enqueue(strMsg);
                 return myExifData;
             }
             catch (System.IO.IOException e)
             {
-                WriteLog("Exception-" + str_file);
+                //WriteLog("Exception-" + str_file);
+                string strMsg = string.Format("Exception-{0}", str_file);
+                m_queueLogMsg.Enqueue(strMsg);
                 return myExifData;
             }
 
