@@ -48,16 +48,12 @@ namespace WF_PhotoCleanUp_002
 
     public partial class Form1 : Form
     {
-        ThreadStart threadReadFolderGate;
-        Thread threadReadFolder;
-        ThreadStart threadDrawInfoGate;
-        Thread threadDrawInfo;
+
         Queue<string> m_queueLogMsg = new Queue<string>();
         string m_strTbSrcPath = string.Empty;
-
+        string m_strTbDstPath = string.Empty;
 
         System.Windows.Forms.Timer myTimer = new System.Windows.Forms.Timer();
-        System.Windows.Forms.Timer myTimerProgress = new System.Windows.Forms.Timer();
 
         int m_nCntAll = 0;
         int m_nCnt = 0;
@@ -73,53 +69,22 @@ namespace WF_PhotoCleanUp_002
         PhotoFile JpgFile = new PhotoFile();
         PhotoFile NonJpgFile = new PhotoFile();
 
-        MyWorker myWorker = new MyWorker();
-
-        //Thread #1
-        public void ThreadReadFolder()
-        {
-            ReadFolder(m_strTbSrcPath);
-        }
-        public void ThreadDrawInfo()
-        {
-            DrawInfo();
-        }
-
-
         public Form1()
         {
             InitializeComponent();
-
-            //Thread init
-           
-
-            //threadDrawInfoGate = this.ThreadDrawInfo;
-            //threadDrawInfo = new Thread(threadDrawInfoGate);
-
-            //threadDrawInfo.Start();
-
 
             myTimer.Interval = 100;
             myTimer.Tick += new EventHandler(timer_tick);
             myTimer.Start();
 
-            //myTimerProgress.Interval = 200;
-            //myTimerProgress.Tick += new EventHandler(timer_tick_progress);
-            //myTimerProgress.Start();
-
-            //ProgressBarMarStop();
-
         }
         public void DrawInfo()
         {
-            while (true)
-            {
-                string strLog1 = string.Format("{0}", m_nCnt);
-                string strLog2 = string.Format("{0}", m_nCntAll);
-                tb_cnt1.Text = strLog1;
-                tb_cnt2.Text = strLog2;
-                Delay(1);
-            } 
+            string strLog1 = string.Format("{0}", listPhoto.Count);
+            string strLog2 = string.Format("{0}", m_nCntAll);
+            tb_cnt1.Text = strLog1;
+            tb_cnt2.Text = strLog2;
+
         }
 
         public void SetCntInfo(int nCnt, int nCntAll)
@@ -131,17 +96,17 @@ namespace WF_PhotoCleanUp_002
 
         public void timer_tick(object sender, System.EventArgs e)
         {
-            string strLog1 = string.Format("{0}", myWorker.m_nCnt);
-            string strLog2 = string.Format("{0}", myWorker.m_nCntAll);
-            tb_cnt1.Text = strLog1;
-            tb_cnt2.Text = strLog2;
+            DrawInfo();
 
-            if (myWorker.m_queueLogMsg.Count() > 0)
+            if (m_queueLogMsg.Count() > 0)
             {
-                string strMsg = myWorker.m_queueLogMsg.Dequeue();
-                WriteLog(strMsg);
+                string strMsg = string.Empty;
+                for (int i=0; i< m_queueLogMsg.Count(); i++)
+                {
+                    strMsg = m_queueLogMsg.Dequeue();
+                    WriteLog(strMsg);
+                }
             }
-            
         }
 
         public void timer_tick_progress(object sender, System.EventArgs e)
@@ -153,43 +118,6 @@ namespace WF_PhotoCleanUp_002
             {
                 int nPercent = Convert.ToInt32((((float)m_nCnt / (float)m_nCntAll) * 100.0));
                 SetProgressBar(nPercent);
-            }
-        }
-
-        public void func1()
-        {
-            IEnumerable<MetadataExtractor.Directory> directories;
-            directories = ImageMetadataReader.ReadMetadata("D:\\1.MOV");
-
-            //var subIfdDirectory = directories.OfType<ExifSubIfdDirectory>().FirstOrDefault();
-            //var dateTime = subIfdDirectory?.GetDescription(ExifDirectoryBase.TagDateTime);
-
-            //Console.WriteLine($"{ dateTime}");
-
-            System.IO.DirectoryInfo diInfo = new System.IO.DirectoryInfo("D:\\");
-
-            foreach (System.IO.FileInfo File in diInfo.GetFiles())
-            {
-                string strFullName = File.FullName;
-
-                try
-                {
-                    directories = ImageMetadataReader.ReadMetadata(strFullName);
-                    Console.WriteLine("fileName = " + strFullName);
-                }
-                catch (MetadataExtractor.ImageProcessingException e)
-                {
-                    WriteLog("Exception-"+strFullName);
-}
-                
-                foreach (var direc in directories)
-                {
-                    foreach (var tag1 in direc.Tags)
-                    {
-                        Console.WriteLine($"{ direc.Name} - { tag1.Name} = { tag1.Description}");
-                    }
-
-                }
             }
         }
 
@@ -206,27 +134,47 @@ namespace WF_PhotoCleanUp_002
             strDestPath = open_folder_dialog(strDefaultFolder);
             textBox_dest_path.Text = strDestPath;
         }
+
         private void btn_reserch_Click(object sender, EventArgs e)
         {
             ResetVariable();
-            myWorker.m_strSrcPath = textBox_src_path.Text;
-            myWorker.RunWorkThread();
 
-
-            //threadReadFolder = new Thread(new ThreadStart(ThreadReadFolder));
-            //threadReadFolder.IsBackground = true;
-            //threadReadFolder.Priority = ThreadPriority.Normal;
-            //m_strTbSrcPath = textBox_src_path.Text;
-            //threadReadFolder.Start();
-            //m_queueLogMsg.Enqueue("스레드 시작");
-            //threadReadFolder.Join();
-            //m_queueLogMsg.Enqueue("스레드 종료");
+            Thread thread = new Thread(new ThreadStart(delegate () // thread 생성
+            {
+                m_strTbSrcPath = textBox_src_path.Text;
+                ReadFolder(m_strTbSrcPath);
+                this.Invoke(new Action(delegate ()
+                {
+                   
+                }));
+            }));
+            m_queueLogMsg.Enqueue("검색 스레드 시작");
+            thread.Start();
         }
-       
+
         private void btn_clean_Click(object sender, EventArgs e)
         {
-            return;
+            ResetVariable();
 
+            Thread thread = new Thread(new ThreadStart(delegate () // thread 생성
+            {
+                m_strTbSrcPath = textBox_src_path.Text;
+                m_strTbDstPath = textBox_dest_path.Text;
+                //func
+                Clean_Photo();
+                this.Invoke(new Action(delegate ()
+                {
+
+                }));
+            }));
+            m_queueLogMsg.Enqueue("정리 스레드 시작");
+            thread.Start(); 
+
+
+        }
+
+        public void Clean_Photo()
+        {
             string strFileCnt = string.Empty;
 
             if (string.IsNullOrEmpty(textBox_src_path.Text) == false && string.IsNullOrEmpty(textBox_dest_path.Text) == false)
@@ -238,9 +186,9 @@ namespace WF_PhotoCleanUp_002
                     NonJpgFile.SetFileCnt(0);
                     //yes
                     find_photo(textBox_src_path.Text, 1);
-                    
+
                     //정렬
-                    listPhoto.Sort(delegate(MyPhoto A, MyPhoto B)
+                    listPhoto.Sort(delegate (MyPhoto A, MyPhoto B)
                     {
                         if (A.nDateFull > B.nDateFull) return 1;
                         else if (A.nDateFull < B.nDateFull) return -1;
@@ -252,7 +200,7 @@ namespace WF_PhotoCleanUp_002
                     string strOldFolderName = string.Empty;
                     int nCleanedCnt = 0;
 
-                    for(int nIndex = 0; nIndex < listPhoto.Count; nIndex++)
+                    for (int nIndex = 0; nIndex < listPhoto.Count; nIndex++)
                     {
                         int nDate = listPhoto[nIndex].nDate;
                         string strDate = Convert.ToString(nDate);
@@ -285,7 +233,7 @@ namespace WF_PhotoCleanUp_002
                             CreateFolder(strDestFolder);
                             strDestFileName = string.Format("{0}\\{1}\\{2}_{3}.jpg", textBox_dest_path.Text, strCurrentForderName, strCurrentForderName, nCnt);
                             FileRename(textBox_dest_path.Text, listPhoto[nIndex].filePath, strDestFileName);
-                            nCnt++;           
+                            nCnt++;
                         }
 
                         nCleanedCnt++;
@@ -304,6 +252,8 @@ namespace WF_PhotoCleanUp_002
                 //메시지-경로를 설정해 주세요
             }
         }
+       
+       
         private static DateTime Delay(int ms)
         {
             DateTime ThisMoment = DateTime.Now;
