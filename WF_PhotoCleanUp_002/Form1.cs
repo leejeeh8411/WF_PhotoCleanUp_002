@@ -170,7 +170,6 @@ namespace WF_PhotoCleanUp_002
             m_queueLogMsg.Enqueue("정리 스레드 시작");
             thread.Start(); 
 
-
         }
 
         public void Clean_Photo()
