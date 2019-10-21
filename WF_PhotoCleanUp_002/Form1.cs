@@ -617,7 +617,7 @@ namespace WF_PhotoCleanUp_002
                 }
                 else if (fileType == FileType.QuickTime)//동영상일 경우 
                 {
-                    bool bUseVideoFile = UseVideoFile(str_file);
+                    bool bUseVideoFile = true;// UseVideoFile(str_file);
                     if (bUseVideoFile)
                     {
                         var subIfdDirectory = directories.OfType<QuickTimeMovieHeaderDirectory>().FirstOrDefault();
