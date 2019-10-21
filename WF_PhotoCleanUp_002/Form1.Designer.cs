@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
             this.textBox_src_path = new System.Windows.Forms.TextBox();
             this.textBox_dest_path = new System.Windows.Forms.TextBox();
             this.btn_sel_src_folder = new System.Windows.Forms.Button();
@@ -359,9 +360,10 @@
             this.Controls.Add(this.btn_sel_src_folder);
             this.Controls.Add(this.textBox_dest_path);
             this.Controls.Add(this.textBox_src_path);
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MaximizeBox = false;
             this.Name = "Form1";
-            this.Text = "Move Photo";
+            this.Text = "포토클린업";
             this.ResumeLayout(false);
             this.PerformLayout();
 
