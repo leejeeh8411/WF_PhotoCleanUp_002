@@ -35,6 +35,7 @@ namespace WF_PhotoCleanUp_002
         public string fileExt;
         public bool bImage;
         public bool bVideo;
+        public DateTime dtCreatedDate;
     }
 
     public struct MyExifData
@@ -57,6 +58,7 @@ namespace WF_PhotoCleanUp_002
 
         int m_nCntAll = 0;
         int m_nCnt = 0;
+        bool m_bClean = false;
 
         string strSrcPath = string.Empty;
         string strDestPath = string.Empty;
@@ -80,10 +82,35 @@ namespace WF_PhotoCleanUp_002
         }
         public void DrawInfo()
         {
-            string strLog1 = string.Format("{0}", listPhoto.Count);
-            string strLog2 = string.Format("{0}", m_nCntAll);
+            string strLog1 = string.Empty;
+            string strLog2 = string.Empty;
+
+            if (m_bClean)
+            {
+                strLog1 = string.Format("{0}", m_nCnt);
+                strLog2 = string.Format("{0}", m_nCntAll);
+            }
+            else
+            {
+                strLog1 = string.Format("{0}", listPhoto.Count);
+                strLog2 = string.Format("{0}", m_nCntAll);
+            }
+            
             tb_cnt1.Text = strLog1;
             tb_cnt2.Text = strLog2;
+
+            if(m_bClean == true)
+            {
+                btn_clean.Enabled = false;
+            }
+            else if(listPhoto.Count >= m_nCntAll && m_nCntAll != 0)
+            {
+                btn_clean.Enabled = true;
+            }
+            else
+            {
+                btn_clean.Enabled = false;
+            }
 
         }
 
@@ -137,6 +164,8 @@ namespace WF_PhotoCleanUp_002
 
         private void btn_reserch_Click(object sender, EventArgs e)
         {
+            listPhoto.Clear();
+            m_bClean = false;
             ResetVariable();
 
             Thread thread = new Thread(new ThreadStart(delegate () // thread 생성
@@ -148,44 +177,55 @@ namespace WF_PhotoCleanUp_002
                    
                 }));
             }));
-            m_queueLogMsg.Enqueue("검색 스레드 시작");
+            
             thread.Start();
+            
         }
 
         private void btn_clean_Click(object sender, EventArgs e)
         {
             ResetVariable();
+            
 
-            Thread thread = new Thread(new ThreadStart(delegate () // thread 생성
+            //path 설정 판단
+            if (ValidPath() == false)
             {
-                m_strTbSrcPath = textBox_src_path.Text;
-                m_strTbDstPath = textBox_dest_path.Text;
-                //func
-                Clean_Photo();
-                this.Invoke(new Action(delegate ()
+                WriteLog("경로설정을 확인해 주세요");
+            }
+            else
+            {
+                Thread thread = new Thread(new ThreadStart(delegate () // thread 생성
                 {
+                    m_strTbSrcPath = textBox_src_path.Text;
+                    m_strTbDstPath = textBox_dest_path.Text;
+                    //func
+                    Clean_Photo();
+                    this.Invoke(new Action(delegate ()
+                    {
 
+                    }));
                 }));
-            }));
-            m_queueLogMsg.Enqueue("정리 스레드 시작");
-            thread.Start(); 
-
+                
+                thread.Start();
+                
+            }
         }
 
         public void Clean_Photo()
         {
+            m_bClean = true;
+
             string strFileCnt = string.Empty;
 
             if (string.IsNullOrEmpty(textBox_src_path.Text) == false && string.IsNullOrEmpty(textBox_dest_path.Text) == false)
             {
-                strFileCnt = GetFileCnt();
-                if (MessageBox.Show(strFileCnt + "정리를 실행하시겠습니까?", "YesOrNo", MessageBoxButtons.YesNo) == DialogResult.Yes)
+                strFileCnt = string.Format("{0}", m_nCntAll);
+                if (MessageBox.Show(strFileCnt + "개의 파일을 정리 실행하시겠습니까?", "Yes Or No", MessageBoxButtons.YesNo) == DialogResult.Yes)
                 {
-                    JpgFile.SetFileCnt(0);
-                    NonJpgFile.SetFileCnt(0);
-                    //yes
-                    find_photo(textBox_src_path.Text, 1);
+                    m_queueLogMsg.Enqueue("정리 스레드 시작.....");
 
+                    m_nCnt = 0;
+                   
                     //정렬
                     listPhoto.Sort(delegate (MyPhoto A, MyPhoto B)
                     {
@@ -202,25 +242,21 @@ namespace WF_PhotoCleanUp_002
                     for (int nIndex = 0; nIndex < listPhoto.Count; nIndex++)
                     {
                         int nDate = listPhoto[nIndex].nDate;
+                        bool bHaveExif = listPhoto[nIndex].bExifDate;
                         string strDate = Convert.ToString(nDate);
                         string strDestFolder;
                         string strDestFileName;
 
-                        int nNoneExif = 0;
-
-                        if (nDate == nNoneExif)
-                        {
-                            strDestFolder = string.Format("{0}\\{1}", textBox_dest_path.Text, "None");
-                            CreateFolder(strDestFolder);
-                            strDestFileName = string.Format("{0}\\{1}\\{2}_{3}.jpg", textBox_dest_path.Text, "None", "None", nCntNone);
-                            FileRename(textBox_dest_path.Text, listPhoto[nIndex].filePath, strDestFileName);
-                            nCntNone++;
-                        }
-                        else
+                        if (bHaveExif)
                         {
                             //해당 폴더에서 최초인지 체크
                             string strCurrentForderName = string.Empty;
+                            string strCurrentFileName = string.Empty;
                             strCurrentForderName = listPhoto[nIndex].folderName;
+                            //파일이름:yyyymmsshhmmss
+                            DateTime dtCrDate = listPhoto[nIndex].dtCreatedDate;
+                            string strExt = listPhoto[nIndex].fileExt;
+                            strCurrentFileName = dtCrDate.ToString("yyyyMMdd_hhmmss");
 
                             if (string.IsNullOrEmpty(strOldFolderName) || strOldFolderName != strCurrentForderName)
                             {
@@ -230,16 +266,27 @@ namespace WF_PhotoCleanUp_002
                             strOldFolderName = listPhoto[nIndex].folderName;
                             strDestFolder = string.Format("{0}\\{1}", textBox_dest_path.Text, strCurrentForderName);
                             CreateFolder(strDestFolder);
-                            strDestFileName = string.Format("{0}\\{1}\\{2}_{3}.jpg", textBox_dest_path.Text, strCurrentForderName, strCurrentForderName, nCnt);
+                            strDestFileName = string.Format("{0}\\{1}\\{2}_{3}{4}", textBox_dest_path.Text, strCurrentForderName, strCurrentFileName, nCnt, strExt);
                             FileRename(textBox_dest_path.Text, listPhoto[nIndex].filePath, strDestFileName);
                             nCnt++;
+                            
                         }
-
+                        else
+                        {
+                            strDestFolder = string.Format("{0}\\{1}", textBox_dest_path.Text, "None");
+                            CreateFolder(strDestFolder);
+                            strDestFileName = string.Format("{0}\\{1}\\{2}_{3}.jpg", textBox_dest_path.Text, "None", "None", nCntNone);
+                            FileRename(textBox_dest_path.Text, listPhoto[nIndex].filePath, strDestFileName);
+                            nCntNone++;
+                        }
+                        //Thread.Sleep(1000);
                         nCleanedCnt++;
+                        m_nCnt = nCleanedCnt;
                     }
-                    string strLog = string.Format("처리 갯수 : [{0}] / [{1}] ", nCleanedCnt, listPhoto.Count);
-                    WriteLog(strLog);
-                    Delay(1000);
+
+                    btn_clean.Enabled = false;
+                    m_queueLogMsg.Enqueue("정리 완료.....");
+
                 }
                 else
                 {
@@ -250,6 +297,8 @@ namespace WF_PhotoCleanUp_002
             {
                 //메시지-경로를 설정해 주세요
             }
+
+            m_bClean = true;
         }
        
        
@@ -338,9 +387,25 @@ namespace WF_PhotoCleanUp_002
         {
             string strText = string.Empty;
             JpgFile.SetFileCnt(0);
-            NonJpgFile.SetFileCnt(0);
-            listPhoto.Clear();
+            NonJpgFile.SetFileCnt(0);    
         }
+
+        private bool ValidPath()
+        {
+            string strSrc = textBox_src_path.Text;
+            string strDst = textBox_dest_path.Text;
+
+            bool bRet = false;
+
+            if(string.IsNullOrEmpty(strSrc) == false && string.IsNullOrEmpty(strDst) == false)
+            {
+                bRet = true;
+            }
+
+            return bRet;
+
+        }
+
 
         private void ProgressBarMarStart()
         {
@@ -363,27 +428,40 @@ namespace WF_PhotoCleanUp_002
             //파일 탐색
             if (string.IsNullOrEmpty(strFolderPath) == false)
             {
+                m_queueLogMsg.Enqueue("검색 스레드 시작.....");
+
                 DirectoryInfo di = new DirectoryInfo(strFolderPath);
                 int nCnt = 0;
 
-                //아래 안들어갈 수도 있음. 바로 파일이 있을때.
-
-                foreach (System.IO.FileInfo f in di.GetFiles())
+                if (di.Exists)
                 {
-                    nCnt++;
+                    //아래 안들어갈 수도 있음. 바로 파일이 있을때.
+
+                    foreach (System.IO.FileInfo f in di.GetFiles())
+                    {
+                        nCnt++;
+                    }
+
+                    foreach (var item in di.GetDirectories())
+                    {
+                        nCnt += item.GetFiles("*.*", System.IO.SearchOption.AllDirectories).Length;
+                    }
+
+
+                    m_nCntAll = nCnt;
+
+                    listPhoto.Clear();
+
+                    find_photo2(m_strTbSrcPath);
+
+                    m_queueLogMsg.Enqueue("검색 완료.....");
                 }
 
-                foreach (var item in di.GetDirectories())
+                else
                 {
-                    nCnt += item.GetFiles("*.*", System.IO.SearchOption.AllDirectories).Length;
+                    m_queueLogMsg.Enqueue(string.Format("{0} 해당 경로가 없습니다.....", strFolderPath));
                 }
-
-
-                m_nCntAll = nCnt;
-
-                listPhoto.Clear();
-
-                find_photo2(m_strTbSrcPath);
+                
             }
         }
 
@@ -469,10 +547,6 @@ namespace WF_PhotoCleanUp_002
             JpgFile.AddFileCnt(nJpgFileCnt);
             NonJpgFile.AddFileCnt(nNonJpgFileCnt);
 
-            string strLog = string.Format("파일로딩중 : [{0}] / [{1}] ", JpgFile.GetFileCnt(), NonJpgFile.GetFileCnt());
-            WriteLog(strLog);
-            Delay(10);
-
             System.IO.DirectoryInfo[] dirs = diInfo.GetDirectories();                       // 현재 path경로의 디렉터리들을 검색.       
             if (dirs.Length > 0)
             {
@@ -496,31 +570,31 @@ namespace WF_PhotoCleanUp_002
 
                 if (myExifData.bSuccessExifData)
                 {
-                    myPhoto.bExifDate = false;
-                    myPhoto.filePath = File.FullName;
-                    myPhoto.fileName = File.Name;
-                    listPhoto.Add(myPhoto);
+                    myPhoto.bExifDate = true;
+                    
                 }
                 else
                 {
-                    DateTime dtCreatedDate = myExifData.dtDate;
-                    string myConvertedDate = dtCreatedDate.ToString("yyyy-MM-dd");
-                    int nCovertedDate = Convert.ToInt32(dtCreatedDate.ToString("yyyyMMdd"));
-                    long nCovertedDateFull = Convert.ToInt64(dtCreatedDate.ToString("yyyyMMddHHmmss"));
-
-                    myPhoto.nDate = nCovertedDate;
-                    myPhoto.nDateFull = nCovertedDateFull;
-                    myPhoto.fileName = File.Name;
-                    myPhoto.bExifDate = true;
-                    myPhoto.filePath = File.FullName;
-                    myPhoto.folderName = myConvertedDate;
-                    myPhoto.bDone = false;
-                    myPhoto.fileExt = myExifData.strFileExt;
-                    myPhoto.bImage = myExifData.bImage;
-                    myPhoto.bVideo = myExifData.bVideo;
-
-                    listPhoto.Add(myPhoto);
+                    myPhoto.bExifDate = false;
                 }
+
+                DateTime dtCreatedDate = myExifData.dtDate;
+                string myConvertedDate = dtCreatedDate.ToString("yyyy-MM-dd");
+                int nCovertedDate = Convert.ToInt32(dtCreatedDate.ToString("yyyyMMdd"));
+                long nCovertedDateFull = Convert.ToInt64(dtCreatedDate.ToString("yyyyMMddHHmmss"));
+
+                myPhoto.dtCreatedDate = dtCreatedDate;
+                myPhoto.nDate = nCovertedDate;
+                myPhoto.nDateFull = nCovertedDateFull;
+                myPhoto.fileName = File.Name;
+                myPhoto.bExifDate = true;
+                myPhoto.filePath = File.FullName;
+                myPhoto.folderName = myConvertedDate;
+                myPhoto.bDone = false;
+                myPhoto.fileExt = myExifData.strFileExt;
+                myPhoto.bImage = myExifData.bImage;
+                myPhoto.bVideo = myExifData.bVideo;
+                listPhoto.Add(myPhoto);
             }
 
 
