@@ -295,13 +295,45 @@ namespace WF_PhotoCleanUp_002
                         }
                         else
                         {
+                            string strExt = listPhoto[nIndex].fileExt;
+                            string strFileName = listPhoto[nIndex].fileName;
                             strDestFolder = string.Format("{0}\\{1}", textBox_dest_path.Text, "None");
                             CreateFolder(strDestFolder);
-                            strDestFileName = string.Format("{0}\\{1}\\{2}_{3}.jpg", textBox_dest_path.Text, "None", "None", nCntNone);
+                            strDestFileName = string.Format("{0}\\{1}\\{2}{3}", textBox_dest_path.Text, "None", strFileName, strExt);
+
+                            bool bWorkMove = false;
+
+                            if (FileExistsCheck(strDestFileName))
+                            {
+                                int nMaxWhile = 100;
+                                for (int i = 1; i < nMaxWhile; i++)
+                                {
+                                    strDestFileName = string.Format("{0}\\{1}\\{2}_{3}{4}", textBox_dest_path.Text, "None", strFileName, i, strExt);
+                                    if (FileExistsCheck(strDestFileName))
+                                    {
+
+                                    }
+                                    else
+                                    {
+                                        bWorkMove = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                bWorkMove = true;
+                            }
+
+                            if (bWorkMove)
+                            {
+                                FileRename(textBox_dest_path.Text, listPhoto[nIndex].filePath, strDestFileName);
+                                nCnt++;
+                            }
                             FileRename(textBox_dest_path.Text, listPhoto[nIndex].filePath, strDestFileName);
                             nCntNone++;
                         }
-                        //Thread.Sleep(1000);
+                        
                         nCleanedCnt++;
                         m_nCnt = nCleanedCnt;
                     }
@@ -520,7 +552,6 @@ namespace WF_PhotoCleanUp_002
                 myPhoto.nDate = nCovertedDate;
                 myPhoto.nDateFull = nCovertedDateFull;
                 myPhoto.fileName = File.Name;
-                myPhoto.bExifDate = true;
                 myPhoto.filePath = File.FullName;
                 myPhoto.folderName = myConvertedDate;
                 myPhoto.bDone = false;

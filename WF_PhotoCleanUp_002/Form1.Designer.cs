@@ -257,10 +257,10 @@
             this.label10.AutoSize = true;
             this.label10.Location = new System.Drawing.Point(459, 208);
             this.label10.Name = "label10";
-            this.label10.Size = new System.Drawing.Size(322, 36);
+            this.label10.Size = new System.Drawing.Size(318, 24);
             this.label10.TabIndex = 21;
-            this.label10.Text = "사   진 : JPEG, PNG, WebP, GIF, ICO, BMP, TIFF, PSD, \r\n            RAW, CRW, CR2, N" +
-    "EF, ORF, RAF, RW2, RWL, \r\n            SRW, ARW, DMG, X3F\r\n";
+            this.label10.Text = "사   진 : JPEG, PNG, WebP, GIF, ICO, BMP, TIFF, PSD,\r\n            Camera Raw(NEF, C" +
+    "R2, ORF, ...)";
             // 
             // label11
             // 
