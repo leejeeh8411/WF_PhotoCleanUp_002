@@ -256,41 +256,9 @@ namespace WF_PhotoCleanUp_002
                             strOldFolderName = listPhoto[nIndex].folderName;
                             strDestFolder = string.Format("{0}\\{1}", textBox_dest_path.Text, strCurrentForderName);
                             CreateFolder(strDestFolder);
-                            //strDestFileName = string.Format("{0}\\{1}\\{2}_{3}{4}", textBox_dest_path.Text, strCurrentForderName, strCurrentFileName, nCnt, strExt);
-                            strDestFileName = string.Format("{0}\\{1}\\{2}{3}", textBox_dest_path.Text, strCurrentForderName, strCurrentFileName, strExt);
-
-                            bool bWorkMove = false;
-
-                            if(FileExistsCheck(strDestFileName))
-                            {
-                                int nMaxWhile = 100;
-                                for(int i=1; i< nMaxWhile; i++)
-                                {
-                                    strDestFileName = string.Format("{0}\\{1}\\{2}_{3}{4}", textBox_dest_path.Text, strCurrentForderName, strCurrentFileName, i, strExt);
-                                    if(FileExistsCheck(strDestFileName))
-                                    {
-                                        
-                                    }
-                                    else
-                                    {
-                                        bWorkMove = true;
-                                        break;
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                bWorkMove = true;
-                            }
-
-                            if (bWorkMove)
-                            {
-                                FileRename(textBox_dest_path.Text, listPhoto[nIndex].filePath, strDestFileName);
-                                nCnt++;
-                            }
-                            
-                            
-                            
+                            strDestFileName = string.Format("{0}\\{1}\\{2}_{3}{4}", textBox_dest_path.Text, strCurrentForderName, strCurrentFileName, nCnt, strExt);
+                            FileRename(textBox_dest_path.Text, listPhoto[nIndex].filePath, strDestFileName);
+                            nCnt++;
 
                         }
                         else
