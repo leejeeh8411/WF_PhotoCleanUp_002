@@ -36,6 +36,7 @@ namespace WF_PhotoCleanUp_002
         public bool bImage;
         public bool bVideo;
         public DateTime dtCreatedDate;
+        public bool bLoadFail;
     }
 
     public struct MyExifData
@@ -45,6 +46,7 @@ namespace WF_PhotoCleanUp_002
         public string strFileExt;
         public bool bVideo;
         public bool bImage;
+        public bool bLoadFileFail;
     }
 
     public partial class Form1 : Form
@@ -233,9 +235,14 @@ namespace WF_PhotoCleanUp_002
                     {
                         int nDate = listPhoto[nIndex].nDate;
                         bool bHaveExif = listPhoto[nIndex].bExifDate;
+                        bool bFileLoadFail = listPhoto[nIndex].bLoadFail;
                         string strDate = Convert.ToString(nDate);
                         string strDestFolder;
                         string strDestFileName;
+                        if (bFileLoadFail)
+                        {
+                            continue;
+                        }
 
                         if (bHaveExif)
                         {
@@ -480,7 +487,6 @@ namespace WF_PhotoCleanUp_002
                         nCnt += item.GetFiles("*.*", System.IO.SearchOption.AllDirectories).Length;
                     }
 
-
                     m_nCntAll = nCnt;
 
                     listPhoto.Clear();
@@ -544,6 +550,8 @@ namespace WF_PhotoCleanUp_002
                     myPhoto.bExifDate = false;
                 }
 
+              
+
                 DateTime dtCreatedDate = myExifData.dtDate;
                 string myConvertedDate = dtCreatedDate.ToString("yyyy-MM-dd");
                 int nCovertedDate = Convert.ToInt32(dtCreatedDate.ToString("yyyyMMdd"));
@@ -559,6 +567,7 @@ namespace WF_PhotoCleanUp_002
                 myPhoto.fileExt = myExifData.strFileExt;
                 myPhoto.bImage = myExifData.bImage;
                 myPhoto.bVideo = myExifData.bVideo;
+                myPhoto.bLoadFail = myExifData.bLoadFileFail;
                 listPhoto.Add(myPhoto);
             }
 
@@ -620,16 +629,20 @@ namespace WF_PhotoCleanUp_002
             myExifData.bImage = false;
             myExifData.bVideo = false;
             myExifData.dtDate = new DateTime();
+            myExifData.bLoadFileFail = true;
+            FileStream myStream = null;
 
             try
             {
-                FileStream myStream = new FileStream(str_file, FileMode.Open);
+                myStream = new FileStream(str_file, FileMode.Open);
                 FileType fileType = FileTypeDetector.DetectFileType(myStream);
                 myStream.Close();
 
                 IEnumerable<MetadataExtractor.Directory> directories;
                 directories = ImageMetadataReader.ReadMetadata(str_file);
                 DateTime dtTime;
+
+                myExifData.bLoadFileFail = false;
 
                 if (fileType == FileType.Jpeg || fileType == FileType.Png || fileType == FileType.Bmp)
                 {
@@ -676,6 +689,12 @@ namespace WF_PhotoCleanUp_002
             catch (System.UnauthorizedAccessException e)
             {
                 //WriteLog("Exception-" + str_file);
+                if (myStream != null)
+                {
+                    myStream.Close();
+                }
+                    
+
                 string strMsg = string.Format("Exception-{0}", str_file);
                 m_queueLogMsg.Enqueue(strMsg);
                 return myExifData;
@@ -694,19 +713,19 @@ namespace WF_PhotoCleanUp_002
 
         bool UseVideoFile(string strFile)
         {
-            bool bRet = false;
+            bool bRet = true;
 
             string strParseExt = Path.GetExtension(strFile);
             strParseExt = strParseExt.Replace(".", "");
 
-            foreach (string strExt in strListUseExt)
-            {
-                if (strExt == strParseExt)
-                {
-                    bRet = true;
-                    break;
-                }
-            }
+            //foreach (string strExt in strListUseExt)
+            //{
+            //    if (strExt == strParseExt)
+            //    {
+            //        bRet = true;
+            //        break;
+            //    }
+            //}
             return bRet;
         }
 
