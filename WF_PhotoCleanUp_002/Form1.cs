@@ -303,6 +303,7 @@ namespace WF_PhotoCleanUp_002
 
                             bool bWorkMove = false;
 
+
                             if (FileExistsCheck(strDestFileName))
                             {
                                 int nMaxWhile = 100;
